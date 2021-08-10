@@ -525,7 +525,14 @@ export function includesSomeLane(a: Lanes | Lane, b: Lanes | Lane) {
   return (a & b) !== NoLanes;
 }
 
+/**
+ * 用lanes 和 lane 按位与一下,如果lane属于lanes 那么与出来还是自己
+ * @param set
+ * @param subset
+ * @returns {boolean}
+ */
 export function isSubsetOfLanes(set: Lanes, subset: Lanes | Lane) {
+
   return (set & subset) === subset;
 }
 
