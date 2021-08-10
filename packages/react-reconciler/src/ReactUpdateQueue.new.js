@@ -119,6 +119,9 @@ export type Update<State> = {|
   // TODO: Temporary field. Will remove this by storing a map of
   // transition -> event time on the root.
   eventTime: number,
+  /**
+   * 这里的Lane 和下面的Lanes的关系是一个松散的从属关系
+   */
   lane: Lane,
 
   tag: 0 | 1 | 2 | 3,
@@ -455,34 +458,99 @@ function getStateFromUpdate<State>(
   return prevState;
 }
 
+/**
+ * 这个方法与外部调用的fiber紧密相连,所以第一个参数就是一个Fiber,先抛开fiber的具体实现,直接看
+ * 这个处理逻辑
+ */
 export function processUpdateQueue<State>(
   workInProgress: Fiber,
   props: any,
   instance: any,
   renderLanes: Lanes,
 ): void {
+  /**
+   * updateQueue我的理解是具体某一个组件的状态update处理过程,接受schedule的统一调度
+   * schedule->fiber->update
+   * 这里拿到一个fiber实例中挂在的更新队列,这个队列实际上是一个环状链表
+   *
+   * export type UpdateQueue<State> = {|
+      baseState: State,
+      firstBaseUpdate: Update<State> | null,
+      lastBaseUpdate: Update<State> | null,
+      shared: SharedQueue<State>,
+      effects: Array<Update<State>> | null,
+    |};
+   * UpdateQueue 类型中要注意的是 shared字段,是一个SharedQueue
+   */
   // This is always non-null on a ClassComponent or HostRoot
   const queue: UpdateQueue<State> = (workInProgress.updateQueue: any);
-
+  /**
+   * 标记当前是不是强制更新,这里 TODO 并不知道用在了哪里
+   * @type {boolean}
+   */
   hasForceUpdate = false;
 
   if (__DEV__) {
     currentlyProcessingQueue = queue.shared;
   }
-
+  /**
+   * 获取第一个没有被更新的的update,获取最后一个没有被更新的update,这里根据各种文章讲说是上一次
+   * 没有被更新的update,存了一个头和一个尾这样就可以拼接在这次的处理过程中
+   * 我的疑问是这个first和last怎么就能保证他们是相连的?也是当前的这个函数设置的?看起来并不是,因为
+   * 当前的函数只处理某一个fiber带来的update. 先 TODO 看看上一次剩下的update到底怎么被初始化的为什么可以保证是连续的.
+   * @type {Update<State>|null|*}
+   */
   let firstBaseUpdate = queue.firstBaseUpdate;
   let lastBaseUpdate = queue.lastBaseUpdate;
-
+  /**
+   * pending是一个UpdateQueue shared字段中的定义,看这个名字应该是当前等待的update,这让我
+   * 疑惑了起来,这是个什么样的调度逻辑?上面是first last 表示没有被更新的,这里又来个pending.
+   * TODO 这个pending中的update 和 first last表示的update队列有啥关系.
+   * 总之这里就是把链表的一个节点赋给一个变量,然后判断一下如果不是空的就把自己置为空
+   * @type {SharedQueue<State>|*}
+   */
   // Check if there are pending updates. If so, transfer them to the base queue.
   let pendingQueue = queue.shared.pending;
   if (pendingQueue !== null) {
+    /**
+     * 赋值为null的行为并不会导致pendingQueue的值发生变化,因为只是变量中存储的内存地址变化了不会
+     * 导致那个内存地址执行的内容变化.要想其变化,还是得直接修改
+     * TODO 为啥要置为null, 不知道,但是是直接修改了当前的这个fiber中的updateQueue的内容.
+     * @type {null}
+     */
     queue.shared.pending = null;
+
+    /**
+     * pendingQueue指向的被认为是最后一个update节点,众所周知updateQueue是一个环状的链表
+     * 所以取其next得到第一个update.
+     * @type {SharedQueue<State>|*}
+     */
 
     // The pending queue is circular. Disconnect the pointer between first
     // and last so that it's non-circular.
     const lastPendingUpdate = pendingQueue;
     const firstPendingUpdate = lastPendingUpdate.next;
+    /**
+     * 取到firstPending之后,把这个环给拆了,
+     * @type {null}
+     */
     lastPendingUpdate.next = null;
+    /**
+     * 上面的lastBaseUpdate判断一下是不是空,如果是的话就把firstBaseUpdate 置为 firstPendingUpdate
+     * 这里有了上面 firstBase 和 lastBase的赋值操作, 最后一个没有被更新的update如果是null的话
+     * 就把firstBase置为firstPending ,如果不空的话就把lastBase的next置为firstPending
+     * 众所周知,lastBase.next 就是 firstBase.
+     *
+     * 这里的注释是把pendingUpdate 添加到 BaseUpdate queue中
+     *
+     *
+     * 这里可以这么理解,如果lastBase是个空的话,那么当前这个base其实是不是一个链表,lastBase是空
+     * firstBase也是空,那么就直接把firstPending 这个链表赋给firstBase,也就是
+     *
+     * 其实有两个链表,一个叫base,一个叫pending,上面这么多操作就是要把pending往base上merge
+     *
+     *
+     */
     // Append pending updates to base queue
     if (lastBaseUpdate === null) {
       firstBaseUpdate = firstPendingUpdate;
