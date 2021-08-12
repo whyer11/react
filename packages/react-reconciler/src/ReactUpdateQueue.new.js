@@ -219,28 +219,85 @@ export function enqueueUpdate<State>(
   update: Update<State>,
   lane: Lane,
 ) {
+  /**
+   * 从fiber中取了updateQueue, 这updateQueue哪里来的..
+   * TODO
+   * 先不管这个updateQueue哪里来的,总之在processUpdate的时候 处理的就是这个updateQueue.
+   *
+   * @type {*}
+   */
   const updateQueue = fiber.updateQueue;
+  /**
+   * 如果是空的话 就直接返回.为啥,这不是拿着fiber和update来排队的吗?
+   */
   if (updateQueue === null) {
     // Only occurs if the fiber has been unmounted.
     return;
   }
-
+  /**
+   * 又从updateDate中取shared了,这里看着有点眼熟,因为processUpdateQueue中的pendingQueue就来自于
+   * shared
+   * @type {SharedQueue<State>|*}
+   */
   const sharedQueue: SharedQueue<State> = (updateQueue: any).shared;
-
+  /**
+   * 就判断一下是不是可打断的fiber
+   */
   if (isInterleavedUpdate(fiber, lane)) {
+    /**
+     * 这里的sharedQueue 具备 pending interleaved lanes 三个字段, pending的意思就是当前等待的updates
+     * 这里取interleaved这个字段说实话不知道是干啥的
+     * @type {Update<State>|Update<State>|*}
+     */
     const interleaved = sharedQueue.interleaved;
     if (interleaved === null) {
+      /**
+       * 先自己的next等于自己拼成一个环
+       * @type {Update<State>}
+       */
       // This is the first update. Create a circular list.
       update.next = update;
+      /**
+       * 把一个sharedQueue推入 interleavedQueues的数组中,具体干啥的不知道
+       * 好的这个时候知道了,就是发现shared里面有interleaved了.然后赶紧往公共的interleavedQueues中塞,
+       * 然后这次就先不更新他了
+       */
       // At the end of the current render, this queue's interleaved updates will
       // be transfered to the pending queue.
       pushInterleavedQueue(sharedQueue);
     } else {
+      /**
+       * 果然链表操作就很难 这里就是把interleaved的next同步给update,
+       * @type {Update<State>|*}
+       */
       update.next = interleaved.next;
+      /**
+       * 再把当前的update作为interleaved的下一个节点,这样的每次进来interleaved都会将新节点添加到自己的链表中.
+       * @type {Update<State>}
+       */
       interleaved.next = update;
     }
+    /**
+     * 每次都会将新来的update赋值到interleaved,前面又会把上一个update的next 赋值给当前的update的next
+     * update    update.next     interleaved  interleaved.next
+     * 1            1                     1           1
+     * 2            1                                 2
+     * 3            2                                 3
+     * @type {Update<State>}
+     */
     sharedQueue.interleaved = update;
+
+    /**
+     * 直到这个if结束我也没看懂这是在干什么.总结一下就是判断一下是不是一个"交错"的update,如果是的话往 shared 的interleaved上拼.
+     * 但是后面的process中没有用到这个interleaved...好奇怪
+     * TODO
+     */
   } else {
+    /**
+     * 这个else 就正常了一点,是把每一个新来的update往pending上面拼.这个拼完之后processUpdateQueue
+     * 就消费了这个pending,最终得到新的状态.
+     * @type {Update<State>|Update<State>|*}
+     */
     const pending = sharedQueue.pending;
     if (pending === null) {
       // This is the first update. Create a circular list.

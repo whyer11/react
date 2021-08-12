@@ -15,6 +15,9 @@ if (__DEV__) {
 }
 
 /**
+ * 15年的代码了,15年就有这个帮助更新状态的class.但是解释不了为什么这个this是个fiber,哪里定义了?
+ * 这个Component在代码里面是  class A extends Component. 这么个用法,应该是reactDOM 初始化了,找找
+ *
  * Base class helpers for the updating state of a component.
  */
 function Component(props, context, updater) {
@@ -62,6 +65,9 @@ Component.prototype.setState = function(partialState, callback) {
     'setState(...): takes an object of state variables to update or a ' +
       'function which returns an object of state variables.',
   );
+  /**
+   * 这里第一个参数就是inst,此时已经是一个fiber了
+   */
   this.updater.enqueueSetState(this, partialState, callback, 'setState');
 };
 

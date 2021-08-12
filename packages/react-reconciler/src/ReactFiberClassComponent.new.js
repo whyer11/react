@@ -203,9 +203,32 @@ function applyDerivedStateFromProps(
 
 const classComponentUpdater = {
   isMounted,
+  /**
+   *
+   * @param inst 这个inst 讲道理是 ReactBaseClass里面的this,也就是当前这个组件
+   * @param payload payload 自然就不用说了,setState的第一个参数,可以是obj 也可以是函数
+   * @param callback
+   */
   enqueueSetState(inst, payload, callback) {
+    /**
+     * 获取当前渲染的实例,到这里面这个fiber已经被初始化好了,但是我还没有找到哪里初始化了这个fiber
+     * 往前面找找
+     * 好的我找到了 这个inst就是一个普通的component实例,this._reactInternals上面挂在的fiber
+     * 是由 adoptClassInstance 方法中进行挂载的,此方法接收 adoptClassInstance
+     * 那adoptClassInstance中的 fiber哪里来的呢?
+     *
+     */
     const fiber = getInstance(inst);
+    /**
+     * 取当前的时间 now()
+     * @type {*}
+     */
     const eventTime = requestEventTime();
+    /**
+     * 这里请求了一个优先级 根据fiber上的mode来的
+     *
+     * @type {Lane}
+     */
     const lane = requestUpdateLane(fiber);
 
     const update = createUpdate(eventTime, lane);
@@ -216,8 +239,17 @@ const classComponentUpdater = {
       }
       update.callback = callback;
     }
-
+    /**
+     * 将当前的fiber 和 update 送去排队
+     * 排队是在 fiber.updateQueue.shared上进行排队.
+     */
     enqueueUpdate(fiber, update, lane);
+
+    /**
+     * 这个是setState执行后的最后一个逻辑了.
+     *
+     * @type {FiberRoot}
+     */
     const root = scheduleUpdateOnFiber(fiber, lane, eventTime);
     if (root !== null) {
       entangleTransitions(root, fiber, lane);
@@ -231,7 +263,10 @@ const classComponentUpdater = {
         }
       }
     }
-
+    /**
+     * 埋点逻辑,可以先不看
+     *
+     */
     if (enableSchedulingProfiler) {
       markStateUpdateScheduled(fiber, lane);
     }
@@ -584,6 +619,9 @@ function checkClassInstance(workInProgress: Fiber, ctor: any, newProps: any) {
 function adoptClassInstance(workInProgress: Fiber, instance: any): void {
   instance.updater = classComponentUpdater;
   workInProgress.stateNode = instance;
+  /**
+   * 某一个具体的实例在这里挂载了workInProgress的实例 到 _reactInternals上.
+   */
   // The instance needs access to the fiber so that it can schedule updates
   setInstance(instance, workInProgress);
   if (__DEV__) {
@@ -591,6 +629,16 @@ function adoptClassInstance(workInProgress: Fiber, instance: any): void {
   }
 }
 
+/**
+ * 这个一看名字就是 构造类组件的实例,
+ * 内容也很直接 先对context进行处理再使用ctor new 一个实例
+ * 再把workInProgress这个fiber挂载到_reactInternal上
+ *
+ * @param workInProgress
+ * @param ctor
+ * @param props
+ * @returns {*}
+ */
 function constructClassInstance(
   workInProgress: Fiber,
   ctor: any,

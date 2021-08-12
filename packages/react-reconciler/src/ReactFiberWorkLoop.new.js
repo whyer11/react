@@ -449,9 +449,16 @@ export function scheduleUpdateOnFiber(
   lane: Lane,
   eventTime: number,
 ): FiberRoot | null {
+  /**
+   * 检查是否有嵌套update,具体怎么检查的先不管,反正就是有没有超过50个update,指的应该就是update链表是不是有50个节点
+   * 超过的话就是直接抛错
+   */
   checkForNestedUpdates();
   warnAboutRenderPhaseUpdatesInDEV(fiber);
-
+  /**
+   * 把当前这个fiber和lane同步到fiber树上去.并返回树的根节点
+   * @type {FiberRoot}
+   */
   const root = markUpdateLaneFromFiberToRoot(fiber, lane);
   if (root === null) {
     warnAboutUpdateOnUnmountedFiberInDEV(fiber);
@@ -463,15 +470,24 @@ export function scheduleUpdateOnFiber(
       addFiberToLanesMap(root, fiber, lane);
     }
   }
-
+  /**
+   * 标记根节点上有等待更新的update
+   */
   // Mark that the root has a pending update.
   markRootUpdated(root, lane, eventTime);
-
+  /**
+   * 这是一个嵌套if,搞了3层,代码非常ugly..
+   */
   if (enableProfilerTimer && enableProfilerNestedUpdateScheduledHook) {
     if (
       (executionContext & CommitContext) !== NoContext &&
       root === rootCommittingMutationOrLayoutEffects
     ) {
+      /**
+       * 秀操作,与上ProfileMode还能是真值的只有它自己. 为啥不直接 === 呢..
+       * 不懂,但是有关系吗? 没有关系
+       *
+       */
       if (fiber.mode & ProfileMode) {
         let current = fiber;
         while (current !== null) {
@@ -489,6 +505,18 @@ export function scheduleUpdateOnFiber(
 
   // TODO: Consolidate with `isInterleavedUpdate` check
   if (root === workInProgressRoot) {
+    /**
+     * 直译:
+     * 收到了一个正在渲染中的树的更新。标志着在这个根上有一个交错的更新工作。除非
+     * `deferRenderPhaseUpdateToNextBatch`标志被关闭，并且这是一个渲染阶段的更新。
+     * 在这种情况下，出于向后兼容的考虑，我们不会把渲染阶段的更新当作交错的更新来处理。
+     *
+     * 这个交错的更新, interleavedUpdate 好像在哪里看到过
+     * 在setState -> enqueueUpdate  中有个 isInterleavedUpdate 的判断,当时给的定义是
+     * 是否有可打断的update..em....我再去看看
+     *
+     *
+     */
     // Received an update to a tree that's in the middle of rendering. Mark
     // that there was an interleaved update work on this root. Unless the
     // `deferRenderPhaseUpdateToNextBatch` flag is off and this is a render
@@ -588,6 +616,11 @@ export function isInterleavedUpdate(fiber: Fiber, lane: Lane) {
     // Requires some refactoring. Not a big deal though since it's rare for
     // concurrent apps to have more than a single root.
     workInProgressRoot !== null &&
+    /**
+     * 真他妈绕  (fiber.mode & ConcurrentMode) !== NoMode()
+     * noMode是 0b000000 要想 fiber.mode 与上 ConcurrentMode !== NoMode 意思就是
+     * fiber.mode等于ConcurrentMode ...不知道为什么要这么写
+     */
     (fiber.mode & ConcurrentMode) !== NoMode &&
     // If this is a render phase update (i.e. UNSAFE_componentWillReceiveProps),
     // then don't treat this as an interleaved update. This pattern is

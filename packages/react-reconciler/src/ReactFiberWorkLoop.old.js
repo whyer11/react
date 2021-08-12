@@ -582,6 +582,12 @@ function markUpdateLaneFromFiberToRoot(
   }
 }
 
+/**
+ * 判断当前fiber的update是不是 interleaved, 所谓交错的更新
+ * @param fiber
+ * @param lane
+ * @returns {boolean}
+ */
 export function isInterleavedUpdate(fiber: Fiber, lane: Lane) {
   return (
     // TODO: Optimize slightly by comparing to root that fiber belongs to.
