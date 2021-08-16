@@ -274,6 +274,19 @@ function ChildReconciler(shouldTrackSideEffects) {
     // TODO: For the shouldClone case, this could be micro-optimized a bit by
     // assuming that after the first child we've already added everything.
     let childToDelete = currentFirstChild;
+    /**
+     * deleteChild 这个方法其实并没有真的删除了这个节点,而是给workInProgress打一个标,表示你这个fiber上面有child被删了
+     * 并且把这个要被删掉的child 推入 workInProgress.deletions 这个数组中,然后就完事了.
+     *
+     *
+     * childToDelete = childToDelete.sibling;
+     * 这个语句有点意思, 把要删的child的兄弟,赋值给自己??
+     * 哦..这里是把自己兄弟也删一下,但是只删平级的兄弟
+     * 啊这个意思就是 workInProgress上面的这个节点就是无了
+     *
+     * TODO 没想明白
+     *
+     */
     while (childToDelete !== null) {
       deleteChild(returnFiber, childToDelete);
       childToDelete = childToDelete.sibling;
@@ -1082,22 +1095,71 @@ function ChildReconciler(shouldTrackSideEffects) {
     return created;
   }
 
+  /**
+   * 当render返回的是单个React Element的时候
+   * 参数和复函数一致
+   * @param returnFiber
+   * @param currentFirstChild
+   * @param element
+   * @param lanes
+   * @returns {Fiber}
+   */
   function reconcileSingleElement(
     returnFiber: Fiber,
     currentFirstChild: Fiber | null,
     element: ReactElement,
     lanes: Lanes,
   ): Fiber {
+    /**
+     * 这个是要更新的节点
+     * @type {*}
+     */
     const key = element.key;
+    /**
+     * 这个是当前fiber树上的节点
+     * @type {Fiber}
+     */
     let child = currentFirstChild;
+    /**
+     * 只要当前的fiber不是空的就一致循环
+     * 如果
+     */
     while (child !== null) {
+      /**
+       * 这个if很长,主要判断的情况就是要更新的和被更新的是一个组件的情况
+       */
       // TODO: If key === null and child.key === null, then this only applies to
       // the first item in the list.
       if (child.key === key) {
         const elementType = element.type;
+        /**
+         * 当这个要更新的是一个fragment,然后写了个nest if...
+         *
+         * elementType === REACT_FRAGMENT_TYPE && child.tag === Fragment
+         * 这么写不香吗? 总之就是key是一样的,并且都是fragment.
+         *
+         */
         if (elementType === REACT_FRAGMENT_TYPE) {
           if (child.tag === Fragment) {
+            /**
+             * 这里就是把自己的兄弟们全部都删了,但是不包含自己.为啥要删自己的兄弟呢...em...
+             */
             deleteRemainingChildren(returnFiber, child.sibling);
+            /**
+             * 看起来就是,上面把自己的兄弟一顿删,然后再把新来的当做自己的兄弟拼上去
+             * 这个说不通啊, child 和 element讲道理是平级的, 上面一个函数把自己的兄弟们都删了
+             * 首先这是一个fragment,fragment有自己的兄弟吗?必然有啊
+             * <div>
+             *   <>
+             *     xxx
+             *   </>
+             *   <div>
+             *   </div>
+             * </div>
+             * 这上来把自己的兄弟给删了
+             * 然后拿着新来的children,本质上是fragment的内容
+             * @type {Fiber}
+             */
             const existing = useFiber(child, element.props.children);
             existing.return = returnFiber;
             if (__DEV__) {
@@ -1196,6 +1258,15 @@ function ChildReconciler(shouldTrackSideEffects) {
     return created;
   }
 
+  /**
+   * 这个是协调器/调和器的入口方法,
+   * 虽然我目前还搞不清楚这几个入参是怎么回事 后来看了ReactFiberBeginWork.new.js之后明白了
+   * @param returnFiber         这个就是workInProgress
+   * @param currentFirstChild   这个当前的React组件生成的fiber
+   * @param newChild            这个是react组件的实例调用render之后返回的内容
+   * @param lanes               这个是优先级
+   * @returns {Fiber|*}
+   */
   // This API will tag the children with the side-effect of the reconciliation
   // itself. They will be added to the side-effect list as we pass through the
   // children and the parent.
@@ -1205,6 +1276,16 @@ function ChildReconciler(shouldTrackSideEffects) {
     newChild: any,
     lanes: Lanes,
   ): Fiber | null {
+    /**
+     * 直译:
+     * 这个函数不是递归的。(这句话是吹牛逼的,看下面的代码其实是递归调用了,还留了一个todo说不应该是递归.)
+     *
+     *
+     * 如果顶层项目是一个数组，我们将其视为一组子项，而不是一个片段。另一方面，嵌套的数组将被视为片段节点。递归按正常流程发生。
+     *
+     * 处理顶层未键入的片段，就像它们是数组一样。这导致了<>{[...]}</>和<>...</>之间的歧义。我们对上述模糊情况的处理是一样的。
+     * @type {boolean}
+     */
     // This function is not recursive.
     // If the top level item is an array, we treat it as a set of children,
     // not as a fragment. Nested arrays on the other hand will be treated as
@@ -1218,6 +1299,9 @@ function ChildReconciler(shouldTrackSideEffects) {
       newChild !== null &&
       newChild.type === REACT_FRAGMENT_TYPE &&
       newChild.key === null;
+    /**
+     * 如果当前节点是fragments 并且没有key,就直接取children出来,没有毛病
+     */
     if (isUnkeyedTopLevelFragment) {
       newChild = newChild.props.children;
     }
@@ -1225,6 +1309,10 @@ function ChildReconciler(shouldTrackSideEffects) {
     // Handle object types
     if (typeof newChild === 'object' && newChild !== null) {
       switch (newChild.$$typeof) {
+        /**
+         * 如果是一个正常的React的Element
+         * 这个 REACT_ELEMENT_TYPE 意思就是用createElement搞出来的玩意
+         */
         case REACT_ELEMENT_TYPE:
           return placeSingleChild(
             reconcileSingleElement(
@@ -1234,6 +1322,10 @@ function ChildReconciler(shouldTrackSideEffects) {
               lanes,
             ),
           );
+        /**
+         * 处理portal,说实话这个portal是啥我也从来没有用过...
+         * TODO
+         */
         case REACT_PORTAL_TYPE:
           return placeSingleChild(
             reconcileSinglePortal(
@@ -1243,10 +1335,18 @@ function ChildReconciler(shouldTrackSideEffects) {
               lanes,
             ),
           );
+        /**
+         * 这个lazy是个顶级的API,直接从react上export给用户的
+         */
         case REACT_LAZY_TYPE:
           if (enableLazyElements) {
             const payload = newChild._payload;
             const init = newChild._init;
+            /**
+             * 就是这里,让开发者犯难了,lazy的child该怎么处理?
+             * 偷懒的方式就是一个递归解千愁,但是有问题啊这个方法不应该递归啊,你自己说的
+             * 至于为什么不应该递归,我也不知道
+             */
             // TODO: This function is supposed to be non-recursive.
             return reconcileChildFibers(
               returnFiber,
@@ -1256,7 +1356,10 @@ function ChildReconciler(shouldTrackSideEffects) {
             );
           }
       }
-
+      /**
+       * 当child直接是一个 []
+       * 就是我们render的时候直接返回了[]的时候
+       */
       if (isArray(newChild)) {
         return reconcileChildrenArray(
           returnFiber,
@@ -1265,7 +1368,10 @@ function ChildReconciler(shouldTrackSideEffects) {
           lanes,
         );
       }
-
+      /**
+       * 当render返回了一个迭代器函数. 这个是从来没见过.啥情况还能返回迭代器啊..
+       * TODO
+       */
       if (getIteratorFn(newChild)) {
         return reconcileChildrenIterator(
           returnFiber,
@@ -1274,10 +1380,18 @@ function ChildReconciler(shouldTrackSideEffects) {
           lanes,
         );
       }
-
+      /**
+       * 如果child 是个 object 并且不等于null, 结果上面的一个都不匹配,就会抛出一个经典的错误
+       * Objects are not valid as a React child (found: %s). ' +
+        'If you meant to render a collection of children, use an array ' +
+        'instead.
+         错误不做i18n 一点都不国际化
+       */
       throwOnInvalidObjectType(returnFiber, newChild);
     }
-
+    /**
+     * 当child是字符串,或者数字,就是一个pi't
+     */
     if (typeof newChild === 'string' || typeof newChild === 'number') {
       return placeSingleChild(
         reconcileSingleTextNode(
@@ -1294,11 +1408,19 @@ function ChildReconciler(shouldTrackSideEffects) {
         warnOnFunctionType(returnFiber);
       }
     }
-
+    /**
+     * 这个函数最终返回了另外一个函数的执行结果
+     * 目前没有看懂为什么调和完了要删
+     */
     // Remaining cases are all treated as empty.
     return deleteRemainingChildren(returnFiber, currentFirstChild);
   }
 
+  /**
+   * 最外面的ChildReconciler函数就直接return了这个 reconcileChildFibers函数,而这个函数又在递归自己
+   * 从整个函数体看,就里面定义了一堆函数,然后最终return了这个函数,那当前这个函数是一个高阶函数,
+   * 为了什么.就是为了区分要不要跟踪副作用. 然后在自己定义的函数中一顿if.
+   */
   return reconcileChildFibers;
 }
 

@@ -263,13 +263,30 @@ if (__DEV__) {
   didWarnAboutDefaultPropsOnFunctionComponent = {};
 }
 
+/**
+ * 这个函数就是面向上层的API了,
+ * @param current
+ * @param workInProgress
+ * @param nextChildren
+ * @param renderLanes
+ */
 export function reconcileChildren(
   current: Fiber | null,
   workInProgress: Fiber,
   nextChildren: any,
   renderLanes: Lanes,
 ) {
+  /**
+   * 判断当前的fiber是不是null
+   * 是的话直接mountChildFiber,这个意思就之前没有渲染过,现在可以放心大胆的直接挂载
+   */
   if (current === null) {
+    /**
+     * 直译:
+     * 如果这是一个还没有被渲染的新组件，我们不会通过应用最小的副作用来更新它的子集。相反，我们
+     * 会在子集被渲染之前将其全部加入。这意味着我们可以通过不跟踪副作用来优化这个调和通道。
+     * @type {Fiber}
+     */
     // If this is a fresh new component that hasn't been rendered yet, we
     // won't update its child set by applying minimal side-effects. Instead,
     // we will add them all to the child before it gets rendered. That means
@@ -281,6 +298,21 @@ export function reconcileChildren(
       renderLanes,
     );
   } else {
+    /**
+     * 直译:
+     *  如果当前的孩子与正在进行的工作相同，这意味着我们还没有开始对这些孩子进行任何工作。
+     *  因此，我们使用克隆算法来创建所有当前孩子的副本。
+     *
+     *  如果我们已经有了任何进展中的工作，在这一点上是无效的，所以让我们把它扔掉。
+     *
+     *  总之这里是真正的调和算法的调用入口.
+     *  看参数就是
+     *  workInProgress   当前的fiber
+     *  current.child    current也是一个fiber,这里还是不清晰current和workInProgress有啥区别,总之这也是一个fiber,请自动联想fiber的树形结构,child有child和sibling但是没有children
+     *  nextChildren     nextchildren就是下一个要渲染的,即已经被运行了一次的组件,已经在内存中了,此时react并不知道这是个啥,所以就认为是any
+     *  renderLanes      渲染的优先级,具体是啥要看lane的设计,目前我看了但是我没有看懂 em....
+     *
+     */
     // If the current child is the same as the work in progress, it means that
     // we haven't yet started any work on these children. Therefore, we use
     // the clone algorithm to create a copy of all the current children.
