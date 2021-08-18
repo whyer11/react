@@ -243,15 +243,38 @@ export function resolveLazyComponentTag(Component: Function): WorkTag {
 }
 
 /**
- * 这里就是后面一堆用到workInProgress的起点,这个方法
+ * 这里就是后面一堆用到workInProgress的起点
+ * 先看这个方法的入参 一个叫current是个Fiber,一个是pendingProps是个any
+ * 然后看这个方法的返回 直接就返回一个Fiber,进方法里面看看
  * @param current
  * @param pendingProps
  * @returns {Fiber}
  */
 // This is used to create an alternate fiber to do work on.
 export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
+  /**
+   * current.alternate 目前对我来说还是不清晰的概念,观摩了网上很多文章,均是说workInProgress.alternate
+   * 和 workInProgress 互相持有,方便使用
+   *
+   * 那么这个current又是怎么来的呢? 这个current会不会就是另外一个workInProgress?
+   *
+   *
+   * @type {Fiber}
+   */
   let workInProgress = current.alternate;
+  /**
+   *
+   */
   if (workInProgress === null) {
+    /**
+     * 直译:
+     * 我们使用双缓冲池技术，因为我们知道，我们最多只需要一个树的两个版本。我们将 "另一个 "未使
+     * 用的节点汇集到一起，我们可以自由地重新使用。这是懒惰地创建的，以避免为那些从未更新的东西分
+     * 配额外的对象。它还允许我们在需要时回收额外的内存。
+     *
+     *
+     * @type {Fiber}
+     */
     // We use a double buffering pooling technique because we know that we'll
     // only ever need at most two versions of a tree. We pool the "other" unused
     // node that we're free to reuse. This is lazily created to avoid allocating

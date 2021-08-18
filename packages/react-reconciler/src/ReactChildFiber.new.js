@@ -1157,7 +1157,8 @@ function ChildReconciler(shouldTrackSideEffects) {
              *   </div>
              * </div>
              * 这上来把自己的兄弟给删了
-             * 然后拿着新来的children,本质上是fragment的内容
+             * 然后拿着新来的children,本质上是fragment的内容 去调用useFiber, 生成一个新的fiber
+             * 没毛病,
              * @type {Fiber}
              */
             const existing = useFiber(child, element.props.children);
@@ -1200,11 +1201,22 @@ function ChildReconciler(shouldTrackSideEffects) {
         deleteRemainingChildren(returnFiber, child);
         break;
       } else {
+        /**
+         * 这没匹配上就直接删掉这个child..妈的好残忍
+         * 但是也没有返回啥啊
+         */
         deleteChild(returnFiber, child);
       }
+      /**
+       * 这个while 其实是在遍历当前节点的兄弟们,包括他自己.
+       * 这也就解释了为啥每次碰到key一样的情况要把兄弟们都删除
+       * @type {Fiber}
+       */
       child = child.sibling;
     }
-
+    /**
+     * 这里就是 挂载的逻辑
+     */
     if (element.type === REACT_FRAGMENT_TYPE) {
       const created = createFiberFromFragment(
         element.props.children,
@@ -1265,7 +1277,7 @@ function ChildReconciler(shouldTrackSideEffects) {
    * @param currentFirstChild   这个当前的React组件生成的fiber
    * @param newChild            这个是react组件的实例调用render之后返回的内容
    * @param lanes               这个是优先级
-   * @returns {Fiber|*}
+   * @returns {Fiber|*}         返回有点意思,要么是null,要么是一个fiber,为什么是一个fiber呢?
    */
   // This API will tag the children with the side-effect of the reconciliation
   // itself. They will be added to the side-effect list as we pass through the

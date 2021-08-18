@@ -312,6 +312,15 @@ export function reconcileChildren(
      *  nextChildren     nextchildren就是下一个要渲染的,即已经被运行了一次的组件,已经在内存中了,此时react并不知道这是个啥,所以就认为是any
      *  renderLanes      渲染的优先级,具体是啥要看lane的设计,目前我看了但是我没有看懂 em....
      *
+     *
+     *  调用的调和方法就是用来生成child的.
+     *  这个方法被调用的场景是react遍历current fiber树,所以会有workInProgress的节点,和current的节点.
+     *  而调和函数就是拿着新老节点进行对比,看哪些是可以被复用的,可以被复用的孩子节点就继续挂载到workInProgress上去
+     *  一个节点的child,其实不止一个,child还有他的兄弟们,所以调和就是拿着用户新输入的跟当前的fiber的兄弟们一顿对比
+     *  碰到key一样的就挂载在当前workInProgress节点的child上面,表示是复用了.
+     *  这里其实还差一点逻辑,就是调和了之后本质上生成的树是缺失的.因为是新老的key是否匹配,如果匹配了就挂载,没匹配上的就返回了null.
+     *  那么.这些没有匹配上的新节点最终怎么挂载到树上去呢? 在调和的之后发现没有匹配上,就直接创建一个新fiber挂载到workInProgress上
+     *
      */
     // If the current child is the same as the work in progress, it means that
     // we haven't yet started any work on these children. Therefore, we use
