@@ -379,7 +379,13 @@ export function renderWithHooks<Props, SecondArg>(
   // workInProgressHook = null;
 
   // didScheduleRenderPhaseUpdate = false;
+  /**
+   * 直译:
+   * 目前我们会将更新渲染识别为挂载，因为memoizedState === null。这很棘手，因为它对某些类型的组件有效（例如React.lazy）。
 
+   使用memoizedState来区分mount/update只有在至少使用了一个有状态的钩子时才有效。非状态钩子（如上下文）不会被添加到memoizedState中，所以memoizedState在更新和挂载时将为空。
+   *
+   */
   // TODO Warn if no hooks are used at all during mount, then some are used during update.
   // Currently we will identify the update render as a mount because memoizedState === null.
   // This is tricky because it's valid for certain types of components (e.g. React.lazy)
@@ -406,7 +412,10 @@ export function renderWithHooks<Props, SecondArg>(
         ? HooksDispatcherOnMount
         : HooksDispatcherOnUpdate;
   }
-
+  /**
+   * 直接运行了这个组件一把,不管是update还是mount 把props传进去直接运行这个函数
+   * @type {*}
+   */
   let children = Component(props, secondArg);
 
   // Check if there was a render phase update
