@@ -101,11 +101,22 @@ export function createFiberRoot(
   isStrictMode: boolean,
   concurrentUpdatesByDefaultOverride: null | boolean,
 ): FiberRoot {
+  /**
+   * 初始化了一个root, 类型是FiberRootNode
+   *
+   * @type {*}
+   */
   const root: FiberRoot = (new FiberRootNode(containerInfo, tag, hydrate): any);
   if (enableSuspenseCallback) {
     root.hydrationCallbacks = hydrationCallbacks;
   }
-
+  /**
+   * 先创建一个rootFiber,
+   * root的current 指向 初始化出来的一个fiber
+   * 然后再把这个fiber的stateNode指向root.
+   * 这里这个互相持有我是没有见过的, root.current指向 一个fiber 没毛病
+   * @type {Fiber}
+   */
   // Cyclic construction. This cheats the type system right now because
   // stateNode is any.
   const uninitializedFiber = createHostRootFiber(

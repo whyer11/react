@@ -103,10 +103,20 @@ function getReactRootElementInContainer(container: any) {
   }
 }
 
+/**
+ * 从容器创建根, 这个根返回的是一个FiberRoot类型,
+ * @param container    render函数一路传下来的容器,要渲染的目标
+ * @param forceHydrate     是否水合, 普通render的时候不水合
+ * @returns {OpaqueRoot}
+ */
 function legacyCreateRootFromDOMContainer(
   container: Container,
   forceHydrate: boolean,
 ): FiberRoot {
+  /**
+   * 清空容器内的所有内容,加入容器内的东西太多还要删一会?
+   *  或者...覆盖了这个lastChild,这里完全可以死循环
+   */
   // First clear any existing content.
   if (!forceHydrate) {
     let rootSibling;
@@ -145,6 +155,15 @@ function warnOnInvalidCallback(callback: mixed, callerName: string): void {
   }
 }
 
+/**
+ * 为啥是legacy. 而且就这么一个入口,也没有其他非legacy的啊
+ * @param parentComponent    ReactDOM.render 时,这个参数是null
+ * @param children           就是当前要渲染的内容. ReactDOM.render的第一个参数
+ * @param container          容器, 看了一下容器的类型,是一个Document 或者 Element 但是是浏览器的还是react 尚不清晰 TODO
+ * @param forceHydrate       水合? render 调用的时候一致是false
+ * @param callback            callback就是render函数的callback
+ * @returns {React$Component<*, *>|PublicInstance}
+ */
 function legacyRenderSubtreeIntoContainer(
   parentComponent: ?React$Component<any, any>,
   children: ReactNodeList,
@@ -156,10 +175,20 @@ function legacyRenderSubtreeIntoContainer(
     topLevelUpdateWarnings(container);
     warnOnInvalidCallback(callback === undefined ? null : callback, 'render');
   }
-
+  /**
+   * 直接从container上取_reactRootContainer整个玩意,但是render的时候肯定没有啊,没有人对这个参数有修改
+   * @type {FiberRoot|*}
+   */
   let root = container._reactRootContainer;
   let fiberRoot: FiberRoot;
+  /**
+   * 果然,root并没有
+   */
   if (!root) {
+    /**
+     * 调用方法给自己创建一个_reactRootContainer
+     * @type {FiberRoot}
+     */
     // Initial mount
     root = container._reactRootContainer = legacyCreateRootFromDOMContainer(
       container,

@@ -550,6 +550,10 @@ export function scheduleUpdateOnFiber(
     // Treat `act` as if it's inside `batchedUpdates`, even in legacy mode.
     !(__DEV__ && ReactCurrentActQueue.isBatchingLegacy)
   ) {
+    /**
+     * 冲洗现在的同步工作，除非我们已经在工作或在一个批处理中。这是故意在scheduleUpdateOnFiber中进行的，而不是在scheduleCallbackForFiber中进行的，
+     * 以保留安排回调而不立即冲刷的能力。我们只对用户发起的更新做这个，以保留传统模式的历史行为。
+     */
     // Flush the synchronous work now, unless we're already working or inside
     // a batch. This is intentionally inside scheduleUpdateOnFiber instead of
     // scheduleCallbackForFiber to preserve the ability to schedule a callback
