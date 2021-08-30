@@ -83,20 +83,38 @@ export function createEventListenerWrapperWithPriority(
   domEventName: DOMEventName,
   eventSystemFlags: EventSystemFlags,
 ): Function {
+  /**
+   * 这里对事件进行了优先级划分,所谓划分就是把所有具有优先级的事件标记上优先级,
+   * 然后再对事件优先级和fiber的lane进行映射
+   * 比如说click 就是syncLane
+   * @type {*}
+   */
   const eventPriority = getEventPriority(domEventName);
   let listenerWrapper;
   switch (eventPriority) {
     case DiscreteEventPriority:
+      /**
+       * 使用离散事件的dispatch
+       * 这里的离散事件 和 连续事件定义也很迷
+       * click 这种是离散, 给了最高优先级
+       * scroll 认为是连续, 给了第三优先级
+       * @type {dispatchDiscreteEvent}
+       */
       listenerWrapper = dispatchDiscreteEvent;
       break;
     case ContinuousEventPriority:
+      // 连续事件
       listenerWrapper = dispatchContinuousEvent;
       break;
+      // message 和 其他方法的时候就会使用这个优先级
     case DefaultEventPriority:
     default:
       listenerWrapper = dispatchEvent;
       break;
   }
+  /**
+   * 这个所谓的wrapper 其实就是一个转发器,把不同事件转发到不同的dispatch上,并且事件出发的时候修改其入参
+   */
   return listenerWrapper.bind(
     null,
     domEventName,
@@ -141,6 +159,13 @@ function dispatchContinuousEvent(
   }
 }
 
+/**
+ * 不管是什么dispatch 最终都是到这里来
+ * @param domEventName
+ * @param eventSystemFlags
+ * @param targetContainer
+ * @param nativeEvent
+ */
 export function dispatchEvent(
   domEventName: DOMEventName,
   eventSystemFlags: EventSystemFlags,

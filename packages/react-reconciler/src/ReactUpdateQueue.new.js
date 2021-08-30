@@ -166,6 +166,13 @@ if (__DEV__) {
   };
 }
 
+/**
+ * 传入一个Fiber,然后构造一个updateQueue
+ * 好的这里看到了base 和 pending了.就是在更新状态的时候用来比较的状态
+ * 然后把这个queue 挂载到updateQueue上,
+ * 这个Fiber呢也是一个root fiber就是一个react的入口 万物基于此
+ * @param fiber
+ */
 export function initializeUpdateQueue<State>(fiber: Fiber): void {
   const queue: UpdateQueue<State> = {
     baseState: fiber.memoizedState,

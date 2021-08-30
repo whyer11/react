@@ -67,6 +67,11 @@ import invariant from 'shared/invariant';
 import {ConcurrentRoot} from 'react-reconciler/src/ReactRootTags';
 import {allowConcurrentByDefault} from 'shared/ReactFeatureFlags';
 
+/**
+ * 2021年了 用prototype搞继承,有点东西
+ * @param internalRoot
+ * @constructor
+ */
 function ReactDOMRoot(internalRoot) {
   this._internalRoot = internalRoot;
 }
@@ -115,6 +120,12 @@ ReactDOMRoot.prototype.unmount = function(): void {
   });
 };
 
+/**
+ * 介就是新的api,以后不直接render了,先creatRoot,再render
+ * @param container
+ * @param options
+ * @returns {ReactDOMRoot}
+ */
 export function createRoot(
   container: Container,
   options?: CreateRootOptions,
@@ -144,7 +155,10 @@ export function createRoot(
         ? options.unstable_concurrentUpdatesByDefault
         : null;
   }
-
+  /**
+   * 这里就是创建了一个container,并且进行了Fiber初始化的事情,一路点下去有注释
+   * @type {OpaqueRoot}
+   */
   const root = createContainer(
     container,
     ConcurrentRoot,
@@ -154,7 +168,11 @@ export function createRoot(
     concurrentUpdatesByDefaultOverride,
   );
   markContainerAsRoot(root.current, container);
-
+  /**
+   * 这里长知识了,判断一下当前的节点是不是一个 注释节点
+   * 就是 <!-- --> 这个玩意, 介是有大病啊往createRoot里面传注释节点.
+   * @type {*|Container}
+   */
   const rootContainerElement =
     container.nodeType === COMMENT_NODE ? container.parentNode : container;
   listenToAllSupportedEvents(rootContainerElement);

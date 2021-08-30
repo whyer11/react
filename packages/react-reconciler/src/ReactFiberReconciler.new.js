@@ -237,6 +237,16 @@ function findHostInstanceWithWarning(
   return findHostInstance(component);
 }
 
+/**
+ * 在createRoot的时候用到了
+ * @param containerInfo
+ * @param tag
+ * @param hydrate
+ * @param hydrationCallbacks
+ * @param isStrictMode
+ * @param concurrentUpdatesByDefaultOverride
+ * @returns {FiberRoot}
+ */
 export function createContainer(
   containerInfo: Container,
   tag: RootTag,

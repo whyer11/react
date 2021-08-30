@@ -134,6 +134,10 @@ export function createFiberRoot(
       element: null,
       cache: initialCache,
     };
+    /**
+     * 网上的文章说 这个memoizedState hook的时候是链表, class的时候是对象,
+     * @type {{cache: Map<unknown, unknown>, element: null}}
+     */
     uninitializedFiber.memoizedState = initialState;
   } else {
     const initialState = {

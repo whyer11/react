@@ -23,7 +23,10 @@ export const topLevelEventsToReactNames: Map<
   DOMEventName,
   string | null,
 > = new Map();
-
+/**
+ * 这里枚举了所有的simple event
+ * @type {string[]}
+ */
 // NOTE: Capitalization is important in this list!
 //
 // E.g. it needs "pointerDown", not "pointerdown".
