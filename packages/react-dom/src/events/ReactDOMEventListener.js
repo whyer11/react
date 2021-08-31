@@ -90,6 +90,10 @@ export function createEventListenerWrapperWithPriority(
    * @type {*}
    */
   const eventPriority = getEventPriority(domEventName);
+  /**
+   * 这个listenerWrapper其实就是最后的listener了只不过还需要根据不一样优先级
+   * 使用不同的函数
+   */
   let listenerWrapper;
   switch (eventPriority) {
     case DiscreteEventPriority:
@@ -114,6 +118,7 @@ export function createEventListenerWrapperWithPriority(
   }
   /**
    * 这个所谓的wrapper 其实就是一个转发器,把不同事件转发到不同的dispatch上,并且事件出发的时候修改其入参
+   * 生成的函数的this是null ??? 这玩意不是要给后面的addEventListener用吗?
    */
   return listenerWrapper.bind(
     null,
@@ -123,16 +128,44 @@ export function createEventListenerWrapperWithPriority(
   );
 }
 
+/**
+ * 分派离散事件
+ *
+ * @param domEventName
+ * @param eventSystemFlags
+ * @param container
+ * @param nativeEvent
+ */
 function dispatchDiscreteEvent(
   domEventName,
   eventSystemFlags,
   container,
   nativeEvent,
 ) {
+  /**
+   * 这个fiber的优先级我们不多废话,反正就是拿到了一个优先级
+   * @type {EventPriority}
+   */
   const previousPriority = getCurrentUpdatePriority();
+  /**
+   * transition 不知道是啥 TODO
+   * 反正记为了0
+   * @type {number|*}
+   */
   const prevTransition = ReactCurrentBatchConfig.transition;
   ReactCurrentBatchConfig.transition = 0;
   try {
+    /**
+     * 这里比较精彩,这是一个listener,然后他在执行的时候会变更当前正在更新的Fiber的优先级,
+     * 上面取当前更新的Fiber优先级的时候定义为上一个优先级.众所周知 Fiber tree 其实就是vdom tree的链表版
+     * 一个listener被触发的时候,当前必然有fiber的update在被process,所以这个dispatchEvent,盲猜应该就是往updateQueue中塞update了
+     * 好的我盲猜错误了,这里是运行dispatchEvent的时候,就直接同步运行了,这个改优先级的操作应该是让fiber里面的其他update不要抢资源了
+     * 顺着这个看看下去就是在同步执行一个函数 还是 用fn.apply的方式然后把合成事件传递进去
+     *
+     * 这个只是离散事件,其他事件的逻辑都是一样的.
+     *
+     * 不过到这里呢,还没有获取到真正绑定的那个函数,我们继续往下看
+     */
     setCurrentUpdatePriority(DiscreteEventPriority);
     dispatchEvent(domEventName, eventSystemFlags, container, nativeEvent);
   } finally {
@@ -175,19 +208,34 @@ export function dispatchEvent(
   if (!_enabled) {
     return;
   }
-
+  /**
+   * 什么玩意跟 100 与一下变成0呢
+      妈的 这个意思就是 只要 eventSystemFlags !== IS_CAPTURE_PHASE 草为什么要这么写啊 只有 IS_CAPTURE_PHASE&IS_CAPTURE_PHASE !== 0
+   其他flag 与出来都是0啊
+   * @type {boolean}
+   */
   // TODO: replaying capture phase events is currently broken
   // because we used to do it during top-level native bubble handlers
   // but now we use different bubble and capture handlers.
   // In eager mode, we attach capture listeners early, so we need
   // to filter them out until we fix the logic to handle them correctly.
   const allowReplay = (eventSystemFlags & IS_CAPTURE_PHASE) === 0;
-
+  /**
+   * 1. 不在捕获阶段
+   * 2. 有其他的离散事件在排队
+   * 3. 是可重放的离散事件
+   * 都是true的时候
+   * 我们就排队,然后这个方法就return了
+   * 意思就是当一个事件符合上面条件,就只是放进来排队,我们看看队怎么排的
+   */
   if (
     allowReplay &&
     hasQueuedDiscreteEvents() &&
     isReplayableDiscreteEvent(domEventName)
   ) {
+    /**
+     *
+     */
     // If we already have a queue of discrete events, and this is another discrete
     // event, then we can't dispatch it regardless of its target, since they
     // need to dispatch in order.
@@ -243,7 +291,11 @@ export function dispatchEvent(
     // queueing is accumulative.
     clearIfContinuousEvent(domEventName, nativeEvent);
   }
-
+  /**
+   * 先不管上面哪些if ,总之都会到这里来.
+   *
+   * 这个函数第四个参数是null,下面的注释也解释了,说是不可重播所以就不需要target
+   */
   // This is not replayable so we'll invoke it but without a target,
   // in case the event system needs to trace it.
   dispatchEventForPluginEventSystem(

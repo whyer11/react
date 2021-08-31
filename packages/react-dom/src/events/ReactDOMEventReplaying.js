@@ -173,6 +173,14 @@ function createQueuedReplayableEvent(
   };
 }
 
+/**
+ * 这看起来就是往一个数字里面push一下
+ * @param blockedOn
+ * @param domEventName
+ * @param eventSystemFlags
+ * @param targetContainer
+ * @param nativeEvent
+ */
 export function queueDiscreteEvent(
   blockedOn: null | Container | SuspenseInstance,
   domEventName: DOMEventName,
@@ -188,6 +196,9 @@ export function queueDiscreteEvent(
     nativeEvent,
   );
   queuedDiscreteEvents.push(queuedEvent);
+  /**
+   * 这下面的ssr的内容
+   */
   if (enableSelectiveHydration) {
     if (queuedDiscreteEvents.length === 1) {
       // If this was the first discrete event, we might be able to

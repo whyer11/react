@@ -1250,6 +1250,11 @@ function updateMutableSource<Source, Snapshot>(
   return useMutableSource(hook, source, getSnapshot, subscribe);
 }
 
+/**
+ * 第一次useState的时候
+ * @param initialState
+ * @returns {[*, Dispatch<BasicStateAction<S>>]}
+ */
 function mountState<S>(
   initialState: (() => S) | S,
 ): [S, Dispatch<BasicStateAction<S>>] {
@@ -1258,7 +1263,16 @@ function mountState<S>(
     // $FlowFixMe: Flow doesn't like mixed types
     initialState = initialState();
   }
+  /**
+   * 这里开始挂载第一个state了
+   * @type {S}
+   */
   hook.memoizedState = hook.baseState = initialState;
+  /**
+   * 这他妈分开写能死?
+   *
+   * @type {{dispatch: null, pending: null, lanes: Lanes, interleaved: null, lastRenderedReducer: (<S>function(S, BasicStateAction<S>): *|S), lastRenderedState: *}}
+   */
   const queue = (hook.queue = {
     pending: null,
     interleaved: null,
@@ -1267,6 +1281,17 @@ function mountState<S>(
     lastRenderedReducer: basicStateReducer,
     lastRenderedState: (initialState: any),
   });
+  /**
+   * s声明一个dispatch
+   * const temp = dispatchAction.bind(
+                     null,
+                     currentlyRenderingFiber,
+                     queue,
+                  )
+     queue.dispatch = temp
+     const dispatch = temp;
+   * @type {*}
+   */
   const dispatch: Dispatch<
     BasicStateAction<S>,
   > = (queue.dispatch = (dispatchAction.bind(
@@ -1274,6 +1299,10 @@ function mountState<S>(
     currentlyRenderingFiber,
     queue,
   ): any));
+  /**
+   * 这里就是那个const [state,dispatch] = useState(1)'
+   *
+   */
   return [hook.memoizedState, dispatch];
 }
 
@@ -1921,8 +1950,15 @@ function dispatchAction<S, A>(
       );
     }
   }
-
+  /**
+   * 拿一个当前时间
+   * @type {*}
+   */
   const eventTime = requestEventTime();
+  /**
+   * 拿当前的优先级
+   * @type {Lane}
+   */
   const lane = requestUpdateLane(fiber);
 
   const update: Update<S, A> = {

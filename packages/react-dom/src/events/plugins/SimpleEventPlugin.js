@@ -58,10 +58,18 @@ function extractEvents(
   eventSystemFlags: EventSystemFlags,
   targetContainer: EventTarget,
 ): void {
+  /**
+   * 发现当前触发的事件名字不在枚举里面,直接return
+   * @type {void|V}
+   */
   const reactName = topLevelEventsToReactNames.get(domEventName);
   if (reactName === undefined) {
     return;
   }
+  /**
+   * 合成事件的构造函数
+   * @type {(function((string|null), string, Fiber, {[p: string]: *}, (EventTarget|null)): this)|*}
+   */
   let SyntheticEventCtor = SyntheticEvent;
   let reactEventType: string = domEventName;
   switch (domEventName) {

@@ -45,6 +45,9 @@ function finishEventHandler() {
 }
 
 export function batchedUpdates(fn, a, b) {
+  /**
+   *
+   */
   if (isInsideEventHandler) {
     // If we are currently inside another batch, we need to wait until it
     // fully completes before restoring state.
@@ -52,6 +55,19 @@ export function batchedUpdates(fn, a, b) {
   }
   isInsideEventHandler = true;
   try {
+    /**
+     * 这里货不对板了,这个函数声明的时候只有两个参数
+     *
+     * function(fn, bookkeeping) {
+        return fn(bookkeeping);
+        };
+     * 总之 这个函数就是在执行函数,不知道为什么非要搞个全局变量
+     * true的话就是直接执行
+     * 不是true 的话调用一个方法,那个方法再直接执行....如果调用次数很频繁
+     * 区别就是在true的时候不去调用finishEventHandle,但是仍会执行...em..这他妈的就很迷
+     *
+     */
+
     return batchedUpdatesImpl(fn, a, b);
   } finally {
     isInsideEventHandler = false;

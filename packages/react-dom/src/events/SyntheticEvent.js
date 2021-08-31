@@ -26,7 +26,23 @@ function functionThatReturnsFalse() {
 // This is intentionally a factory so that we have different returned constructors.
 // If we had a single constructor, it would be megamorphic and engines would deopt.
 function createSyntheticEvent(Interface: EventInterfaceType) {
+
   /**
+   * 合成事件是由事件插件派发的，通常是为了响应一个
+   * 顶层的事件委托处理程序。
+   *
+   * 这些系统通常应该使用池来减少垃圾收集的频率。
+   * 收集的频率。系统应该检查`isPersistent`以确定该事件是否应该被释放到池中。
+   * 事件在被派发后是否应该被释放到池中。用户如果
+   * 需要一个持久化的事件，应该调用`persist`。
+   *
+   * 合成事件（和子类）通过以下方式实现DOM三级事件API
+   * 规范化浏览器的怪癖。子类不一定要实现一个
+   * DOM接口；自定义应用程序特定的事件也可以子类化。
+   */
+
+  /**
+   * 我曹这里的注释有年头了,内容有毒,还在说事件池的事情,这个注释不要看了
    * Synthetic events are dispatched by event plugins, typically in response to a
    * top-level event delegation handler.
    *
@@ -136,6 +152,7 @@ function createSyntheticEvent(Interface: EventInterfaceType) {
 }
 
 /**
+ * 这里还煞有其事的抽象了一个事件的结构,用于和规范同步
  * @interface Event
  * @see http://www.w3.org/TR/DOM-Level-3-Events/
  */
@@ -149,6 +166,10 @@ const EventInterface = {
   defaultPrevented: 0,
   isTrusted: 0,
 };
+/**
+ * 用一个工厂函数来根据标准事件对象创建合成对象的狗仔函数
+ * @type {function((string|null), string, Fiber, {[p: string]: *}, (EventTarget|null)): SyntheticBaseEvent}
+ */
 export const SyntheticEvent = createSyntheticEvent(EventInterface);
 
 const UIEventInterface: EventInterfaceType = {

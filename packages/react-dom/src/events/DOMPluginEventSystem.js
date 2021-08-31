@@ -270,6 +270,15 @@ export function processDispatchQueue(
   rethrowCaughtError();
 }
 
+/**
+ * 这个函数就是那个给addEventListener执行的套娃函数中最重要的一个.
+ *
+ * @param domEventName
+ * @param eventSystemFlags
+ * @param nativeEvent
+ * @param targetInst
+ * @param targetContainer
+ */
 function dispatchEventsForPlugins(
   domEventName: DOMEventName,
   eventSystemFlags: EventSystemFlags,
@@ -277,8 +286,21 @@ function dispatchEventsForPlugins(
   targetInst: null | Fiber,
   targetContainer: EventTarget,
 ): void {
+  /**
+   * 这里开始解析native的Event对象
+   * getEventTarget这个方法里面是为了拿到真实的target,因为还要做兼容,没想到react居然还能兼容ie9,不容易...应该写一个 chrome only react
+   * 这样体积应该会小一点..
+   *
+   * 引入一个面试题 target 和 currentTarget有什么区别
+   * target就是触发冒泡的第一个节点,
+   * currentTarget就是你绑了事件那个节点
+   * @type {DOMEventTarget}
+   */
   const nativeEventTarget = getEventTarget(nativeEvent);
   const dispatchQueue: DispatchQueue = [];
+  /**
+   * 精彩的地方来了,就这个地方做了合成事件的创建
+   */
   extractEvents(
     dispatchQueue,
     domEventName,
@@ -288,6 +310,11 @@ function dispatchEventsForPlugins(
     eventSystemFlags,
     targetContainer,
   );
+  /**
+   * 上面一顿操作往这个dispatchQueue里面插入了一下合成事件的对象
+   * 最后这里就是同步的执行
+   *
+   */
   processDispatchQueue(dispatchQueue, eventSystemFlags);
 }
 
@@ -412,6 +439,14 @@ export function listenToAllSupportedEvents(rootContainerElement: EventTarget) {
   }
 }
 
+/**
+ * 这是一个非常面熟的方法
+ * @param targetContainer    这个container 在createRoot的时候应该就是root本身吧
+ * @param domEventName       应该是通过一系列的方式把onClick 转成 onclick
+ * @param eventSystemFlags    TODO 这个未知
+ * @param isCapturePhaseListener
+ * @param isDeferredListenerForLegacyFBSupport
+ */
 function addTrappedEventListener(
   targetContainer: EventTarget,
   domEventName: DOMEventName,
@@ -419,6 +454,11 @@ function addTrappedEventListener(
   isCapturePhaseListener: boolean,
   isDeferredListenerForLegacyFBSupport?: boolean,
 ) {
+  /**
+   * 这里的listener是要最终绑定到真实的dom节点上的,所以要看看这个listener是怎么生成的
+   * 这个函数的返回listener
+   * @type {Function}
+   */
   let listener = createEventListenerWrapperWithPriority(
     targetContainer,
     domEventName,
@@ -538,6 +578,9 @@ export function dispatchEventForPluginEventSystem(
   domEventName: DOMEventName,
   eventSystemFlags: EventSystemFlags,
   nativeEvent: AnyNativeEvent,
+  /**
+   * 不可重播的时候这里是个null
+   */
   targetInst: null | Fiber,
   targetContainer: EventTarget,
 ): void {
@@ -564,6 +607,9 @@ export function dispatchEventForPluginEventSystem(
       deferClickToDocumentForLegacyFBSupport(domEventName, targetContainer);
       return;
     }
+    /**
+     * 所以这个if 就进不去 我们把他折叠起来
+     */
     if (targetInst !== null) {
       // The below logic attempts to work out if we need to change
       // the target fiber to a different ancestor. We had similar logic
@@ -582,6 +628,10 @@ export function dispatchEventForPluginEventSystem(
         if (node === null) {
           return;
         }
+        /**
+         * 我草这里我迷了,这个node明明是
+         * @type {WorkTag}
+         */
         const nodeTag = node.tag;
         if (nodeTag === HostRoot || nodeTag === HostPortal) {
           let container = node.stateNode.containerInfo;
@@ -632,7 +682,17 @@ export function dispatchEventForPluginEventSystem(
       }
     }
   }
-
+  /**
+   * 最后就直接到这里
+   * batchUpdates 会执行它的第一个参数
+   * 这个第一个参数会返回 dispatchEventsForPlugins 执行的结果
+   * dispatchEventsForPlugins 这个玩意其实啥也不会返回
+   * 但是我们想清楚这是一个listener,所以当这个函数执行的时候,带着的这个nativeEvent就是addEventListener回调这个函数的时候返回的
+   * 这里没有任何返回没有问题.
+   * 我们继续看当这个函数被浏览器触发的时候会干什么
+   *
+   * 这个时候nativeEvent仍然是透传,现在为止react不知道是谁被触发了
+   */
   batchedUpdates(() =>
     dispatchEventsForPlugins(
       domEventName,
