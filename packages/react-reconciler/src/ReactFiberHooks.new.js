@@ -139,7 +139,11 @@ if (__DEV__) {
   didWarnAboutUseOpaqueIdentifier = {};
   didWarnAboutMismatchedHooksForComponent = new Set();
 }
-
+/**
+ * 这里定义了一个hook这么个类型,同样也有 Update类型的baseQueue 和 UpdateQueue的queue
+ * 很明显这个是一个链表,因为有next, 但是他没有Fiber的return所以他这个执行只能一直去下一个
+ * memoizedState应该就是存放每一次状态的的,这里有个疑问我声明了那么多hook不应都更改状态啊..
+ */
 export type Hook = {|
   memoizedState: any,
   baseState: any,
@@ -164,6 +168,10 @@ type Dispatch<A> = A => void;
 
 // These are set right before calling the component.
 let renderLanes: Lanes = NoLanes;
+/**
+ * 这里其实就是 work-in-progress 的fiber,每次在render的时候都会从外部传进来成为一个全局变量
+ * @type {*}
+ */
 // The work-in-progress fiber. I've named it differently to distinguish it from
 // the work-in-progress hook.
 let currentlyRenderingFiber: Fiber = (null: any);
@@ -604,6 +612,10 @@ export function resetHooksAfterThrow(): void {
 }
 
 function mountWorkInProgressHook(): Hook {
+  /**
+   * 初始化hook
+   * @type {{next: null, baseState: null, baseQueue: null, memoizedState: null, queue: null}}
+   */
   const hook: Hook = {
     memoizedState: null,
 
@@ -616,8 +628,48 @@ function mountWorkInProgressHook(): Hook {
 
   if (workInProgressHook === null) {
     // This is the first hook in the list
+    /**
+     * 这里就是传说中的用了hook的时候 当前的Fiber的memoizedState就是生产的一串hook中的最后一个
+     *
+     * @type {Hook}
+     */
     currentlyRenderingFiber.memoizedState = workInProgressHook = hook;
   } else {
+    /**
+     * 有是一个三连等,我他妈的记得了
+     * 开始之前 workInProgressHook 是一个 hook 称为 hooka
+     * hooka.next应该是个null,因为他是链表的最后一个
+     * 所以hooka = {
+     *   next:null
+     * }
+     * 然后 workInProgressHook 指向了这个hooka
+     * 一个等于
+     * workInProgressHook.next = hook
+     * 意思就是
+     * hooka.next = hook
+     * 所以
+     * hooka = {
+     *   next:hook
+     * }
+     * 执行完
+     * workInProgressHook -> hooka
+     * hooka = {
+     *   next: {
+     *     next:null
+     *   }
+     * }
+     *
+     * 第二个等于
+     * workInProgressHook = hook
+     * 意思是
+     * workInProgressHook 不再指向 hooka, 而指向 hook
+     *
+     * 当然 hooka还是存在的,hooka的next 就是hook 现在workInProgressHook也指向了hook
+     *
+     *
+     *
+     * @type {Hook}
+     */
     // Append to the end of the list
     workInProgressHook = workInProgressHook.next = hook;
   }
@@ -1258,6 +1310,11 @@ function updateMutableSource<Source, Snapshot>(
 function mountState<S>(
   initialState: (() => S) | S,
 ): [S, Dispatch<BasicStateAction<S>>] {
+  /**
+   * 这里初始化了一个hook
+   * 并且挂载到当前渲染的fiber上了
+   * @type {Hook}
+   */
   const hook = mountWorkInProgressHook();
   if (typeof initialState === 'function') {
     // $FlowFixMe: Flow doesn't like mixed types
@@ -1290,6 +1347,9 @@ function mountState<S>(
                   )
      queue.dispatch = temp
      const dispatch = temp;
+
+   * 这类其实很奇怪做了一个bind,然后没有this,并且把useState的时候的current fiber传递了进去,和当前这个这个queue,
+   * queue我能理解.也许一顿修改
    * @type {*}
    */
   const dispatch: Dispatch<
@@ -1936,6 +1996,12 @@ function refreshCache<T>(fiber: Fiber, seedKey: ?() => T, seedValue: T) {
   // TODO: Warn if unmounted?
 }
 
+/**
+ * setXXX 执行的就是这个函数
+ * @param fiber
+ * @param queue
+ * @param action
+ */
 function dispatchAction<S, A>(
   fiber: Fiber,
   queue: UpdateQueue<S, A>,
