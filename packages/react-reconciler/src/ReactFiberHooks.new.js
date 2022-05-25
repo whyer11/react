@@ -676,25 +676,39 @@ function mountWorkInProgressHook(): Hook {
   return workInProgressHook;
 }
 
+/**
+ * 这个函数在调用链 useState -> updateState -> updateReducer 中的第一个语句中用来取一个hook
+ * 而且这个参数没有任何参数
+ * @return {Hook}
+ */
 function updateWorkInProgressHook(): Hook {
   // This function is used both for updates and for re-renders triggered by a
   // render phase update. It assumes there is either a current hook we can
   // clone, or a work-in-progress hook from a previous render pass that we can
   // use as a base. When we reach the end of the base list, we must switch to
   // the dispatcher used for mounts.
+  // 先声明下一个hook
   let nextCurrentHook: null | Hook;
+  // 判断当前的currenthook，这个currenthook是当前文件的变量，在renderWithHook中将函数运行后
+  // 会直接降currenthook置为null，表示第一次运行hook
   if (currentHook === null) {
+    // 这里去alternate是workinprocessfiber的，所以返回的fiber应该是当前已经渲染的fiber
     const current = currentlyRenderingFiber.alternate;
+    // 如果这个current是不为空的，则是已经有fiber了，直接取memoizedState作为nextCurrentHook
+    // 不过这个memoizedState声明是一个any类型，就要看他会被赋值那些内容了，
     if (current !== null) {
       nextCurrentHook = current.memoizedState;
     } else {
       nextCurrentHook = null;
     }
   } else {
+    // currenthook有值，说明已经之前已经运行过，这里还是不对啊，函数组件第二次运行的时候确实有
+    // currenthook，但是这这个是useState还在运行中，这next也不会有值吧。。
     nextCurrentHook = currentHook.next;
   }
 
   let nextWorkInProgressHook: null | Hook;
+  // 这个workInProgressHook也是一个全局变量
   if (workInProgressHook === null) {
     nextWorkInProgressHook = currentlyRenderingFiber.memoizedState;
   } else {
@@ -777,6 +791,13 @@ function mountReducer<S, I, A>(
   return [hook.memoizedState, dispatch];
 }
 
+/**
+ * 这个其实就是useState的本体，只不过useState他的第一个参数是一个默认的函数，函数逻辑是如果是函数就执行
+ * @param reducer
+ * @param initialArg
+ * @param init
+ * @return {[*, Dispatch<A>]}
+ */
 function updateReducer<S, I, A>(
   reducer: (S, A) => S,
   initialArg: I,
@@ -1330,7 +1351,7 @@ function mountState<S>(
    *
    * @type {{dispatch: null, pending: null, lanes: Lanes, interleaved: null, lastRenderedReducer: (<S>function(S, BasicStateAction<S>): *|S), lastRenderedState: *}}
    */
-  const queue = (hook.queue = {
+  const queue = (hook.qu eue = {
     pending: null,
     interleaved: null,
     lanes: NoLanes,
