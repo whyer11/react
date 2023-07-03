@@ -1568,10 +1568,18 @@ function renderRootConcurrent(root: FiberRoot, lanes: Lanes) {
 function workLoopConcurrent() {
   // Perform work until Scheduler asks us to yield
   while (workInProgress !== null && !shouldYield()) {
+    // 这里的workInProgress居然是个全局变量,这里的这个循环
+    // 会一直执行到workInProgress为null
+    // 主要就是看beginWork啥时候会返回null
+    // 而dfs的查找应该是在beginWork里面进行的
     performUnitOfWork(workInProgress);
   }
 }
 
+/**
+ * 对单个fiber进行操作.
+ * @param unitOfWork
+ */
 function performUnitOfWork(unitOfWork: Fiber): void {
   // The current, flushed, state of this fiber is the alternate. Ideally
   // nothing should rely on this, but relying on it here means that we don't
@@ -1591,8 +1599,10 @@ function performUnitOfWork(unitOfWork: Fiber): void {
   resetCurrentDebugFiberInDEV();
   unitOfWork.memoizedProps = unitOfWork.pendingProps;
   if (next === null) {
+    // 这个next是beginWork返回的,而beginwork返回的是一个fiber,所以这里的next是一个fiber,
+    // beginwork主要就是去判断当前参数fiber的子fiber
     // If this doesn't spawn new work, complete the current work.
-    completeUnitOfWork(unitOfWork);
+    completeUnitOfWork(unitOfWork); // 递归完成
   } else {
     workInProgress = next;
   }

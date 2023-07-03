@@ -3737,7 +3737,7 @@ function beginWork(
       const resolvedProps =
         workInProgress.elementType === Component
           ? unresolvedProps
-          : resolveDefaultProps(Component, unresolvedProps);
+          : resolveDefaultProps(Component, unresolvedProps); // default props
       return updateFunctionComponent(
         current,
         workInProgress,
