@@ -96,8 +96,11 @@ export type Fiber = {|
   // This is effectively the parent, but there can be multiple parents (two)
   // so this is only the parent of the thing we're currently processing.
   // It is conceptually the same as the return address of a stack frame.
+  // 这里一堆废话,意思就是指向父节点
   return: Fiber | null,
 
+  // 单链表树结构
+  // 意思就使用child指向第一个子节点,然后子节点的sibling指向下一个兄弟节点
   // Singly Linked List Tree Structure.
   child: Fiber | null,
   sibling: Fiber | null,
