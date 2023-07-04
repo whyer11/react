@@ -324,8 +324,10 @@ export function updateContainer(
     }
     update.callback = callback;
   }
-
+  // 这里的enqueueUpdate返回的是lane
+  // 并没有消费lane,只是把当前的这个update放到了fiber的updateQueue里面
   enqueueUpdate(current, update, lane);
+  // 这里就开始去消费update了
   const root = scheduleUpdateOnFiber(current, lane, eventTime);
   if (root !== null) {
     entangleTransitions(root, current, lane);

@@ -292,7 +292,7 @@ function unstable_wrapCallback(callback) {
     }
   };
 }
-
+// 核心调度逻辑
 function unstable_scheduleCallback(priorityLevel, callback, options) {
   var currentTime = getCurrentTime();
 

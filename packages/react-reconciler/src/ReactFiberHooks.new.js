@@ -365,7 +365,7 @@ export function renderWithHooks<Props, SecondArg>(
   nextRenderLanes: Lanes,
 ): any {
   renderLanes = nextRenderLanes;
-  currentlyRenderingFiber = workInProgress;
+  currentlyRenderingFiber = workInProgress; //
 
   if (__DEV__) {
     hookTypesDev =
@@ -1334,6 +1334,7 @@ function mountState<S>(
   /**
    * 这里初始化了一个hook
    * 并且挂载到当前渲染的fiber上了
+   * 这里的workInProgress和fiber的不一样,fiber的current 和 workInProgress跟这里是一点关系都没有
    * @type {Hook}
    */
   const hook = mountWorkInProgressHook();
@@ -1351,11 +1352,11 @@ function mountState<S>(
    *
    * @type {{dispatch: null, pending: null, lanes: Lanes, interleaved: null, lastRenderedReducer: (<S>function(S, BasicStateAction<S>): *|S), lastRenderedState: *}}
    */
-  const queue = (hook.qu eue = {
+  const queue = (hook.queue = {
     pending: null,
     interleaved: null,
     lanes: NoLanes,
-    dispatch: null,
+    dispatch: null, //这里挂在的也是下面声明的dispatch
     lastRenderedReducer: basicStateReducer,
     lastRenderedState: (initialState: any),
   });

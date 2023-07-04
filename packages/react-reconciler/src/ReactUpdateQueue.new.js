@@ -230,12 +230,15 @@ export function enqueueUpdate<State>(
    * 从fiber中取了updateQueue, 这updateQueue哪里来的..
    * TODO
    * 先不管这个updateQueue哪里来的,总之在processUpdate的时候 处理的就是这个updateQueue.
+   * 这个updateQueue是createFiberRoot的时候初始化的
+   * 第一次渲染的时候,这个时候的Fiber的stateNode就是FiberRoot.
    *
    * @type {*}
    */
   const updateQueue = fiber.updateQueue;
   /**
    * 如果是空的话 就直接返回.为啥,这不是拿着fiber和update来排队的吗?
+   * updateQueue确实会为空,直接return undefined也没有问题
    */
   if (updateQueue === null) {
     // Only occurs if the fiber has been unmounted.

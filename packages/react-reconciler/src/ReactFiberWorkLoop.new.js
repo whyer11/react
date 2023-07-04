@@ -541,7 +541,7 @@ export function scheduleUpdateOnFiber(
       markRootSuspended(root, workInProgressRootRenderLanes);
     }
   }
-
+  //是
   ensureRootIsScheduled(root, eventTime);
   if (
     lane === SyncLane &&
