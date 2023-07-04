@@ -635,6 +635,25 @@ export function isInterleavedUpdate(fiber: Fiber, lane: Lane) {
   );
 }
 
+/**
+ * 使用这个函数为一个根安排一个任务。每个根只有一个任务；
+ * 如果一个任务已经被安排了，我们将检查以确保现有任务的优先级与该根有工作的下一级的优先级相同。
+ * 这个函数在每次更新时，以及在退出任务之前都被调用。
+ * 这个直译的不错,每次updateContainer的时候都会被调用到
+ * 在performConcurrentWorkOnRoot中会被调用到
+ * 在performSyncWorkOnRoot中也会被调用到
+ * 其实这里已经形成了一个循环了
+ * 当performUnitOfWork消费完当前的fiber,会将fiber的next取出,赋值给workInProgress,这个workInProgress就是下一个要消费的fiber,也是一个全局变量
+ * performConcurrentWorkOnRoot
+ * -> renderRootConcurrent
+ * -> workLoopConcurrent
+ * -> performUnitOfWork
+ * -> beginWork    其实到这一步WorkLoop就结束了,下面的都是在beginWork中调用的,beginWork完成调用后会将fiber的next赋值给workInProgress
+ *    -> updateFunctionComponent
+ *    -> renderWithHooks
+ * @param root
+ * @param currentTime
+ */
 // Use this function to schedule a task for a root. There's only one task per
 // root; if a task was already scheduled, we'll check to make sure the priority
 // of the existing task is the same as the priority of the next level that the
@@ -991,7 +1010,7 @@ function markRootSuspended(root, suspendedLanes) {
 
 // This is the entry point for synchronous tasks that don't go
 // through Scheduler
-function performSyncWorkOnRoot(root) {
+  function performSyncWorkOnRoot(root) {
   if (enableProfilerTimer && enableProfilerNestedUpdatePhase) {
     syncNestedUpdateFlag();
   }
@@ -1565,6 +1584,9 @@ function renderRootConcurrent(root: FiberRoot, lanes: Lanes) {
 }
 
 /** @noinline */
+/**
+ *
+ */
 function workLoopConcurrent() {
   // Perform work until Scheduler asks us to yield
   while (workInProgress !== null && !shouldYield()) {
