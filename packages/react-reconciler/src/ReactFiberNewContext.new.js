@@ -603,6 +603,12 @@ export function prepareToReadContext(
   }
 }
 
+/**
+ * useContext的实现
+ * 主要逻辑就是判断isPrimaryRender,然后返回不同的value
+ * @param context
+ * @returns {T}
+ */
 export function readContext<T>(context: ReactContext<T>): T {
   if (__DEV__) {
     // This warning would fire if you read context inside a Hook like useMemo.

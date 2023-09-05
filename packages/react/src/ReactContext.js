@@ -14,7 +14,7 @@ import type {ReactContext} from 'shared/ReactTypes';
 export function createContext<T>(defaultValue: T): ReactContext<T> {
   // TODO: Second argument used to be an optional `calculateChangedBits`
   // function. Warn to reserve for future use?
-
+  // 初始化一个context对象,核心就是一个Provider和一个Consumer
   const context: ReactContext<T> = {
     $$typeof: REACT_CONTEXT_TYPE,
     // As a workaround to support multiple concurrent renderers, we categorize
